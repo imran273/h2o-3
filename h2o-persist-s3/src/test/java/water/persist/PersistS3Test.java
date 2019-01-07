@@ -34,17 +34,20 @@ public class PersistS3Test extends TestUtil {
   }
   @Test
   public void testS3Import() throws Exception {
+    Key k = null, k2 = null;
+    Frame fr = null;
+    FileVec v = null, v2 = null;
     Scope.enter();
     try {
-      Key k = H2O.getPM().anyURIToKey(new URI("s3://h2o-public-test-data/smalldata/airlines/AirlinesTrain.csv.zip"));
-      Frame fr = DKV.getGet(k);
-      FileVec v = (FileVec) fr.anyVec();
+      k = H2O.getPM().anyURIToKey(new URI("s3://h2o-public-test-data/smalldata/airlines/AirlinesTrain.csv.zip"));
+      fr = DKV.getGet(k);
+      v = (FileVec) fr.anyVec();
       // make sure we have some chunks
       int chunkSize = (int) (v.length() / 3);
       v.setChunkSize(fr, chunkSize);
       long xor = new XORTask().doAll(v)._res;
-      Key k2 = H2O.getPM().anyURIToKey(new URI(FileUtils.getFile("smalldata/airlines/AirlinesTrain.csv.zip").getAbsolutePath()));
-      FileVec v2 = DKV.getGet(k2);
+      k2 = H2O.getPM().anyURIToKey(new URI(FileUtils.getFile("smalldata/airlines/AirlinesTrain.csv.zip").getAbsolutePath()));
+      v2 = DKV.getGet(k2);
       assertEquals(v2.length(), v.length());
       assertVecEquals(v, v2, 0);
       // make sure we have some chunks
@@ -55,6 +58,11 @@ public class PersistS3Test extends TestUtil {
       v2.remove();
     } finally {
       Scope.exit();
+      if (k != null) k.remove();
+      if (k2 != null) k2.remove();
+      if (fr != null) fr.remove();
+      if (v != null) v.remove();
+      if (v2 != null) v2.remove();
     }
   }
 
