@@ -5,6 +5,7 @@ def call(final pipelineContext, final Closure body) {
 
   final List<String> FILES_TO_ARCHIVE = [
     '**/*.log', '**/out.*',
+    '**/.lookup.txt', 
     '**/results/*.txt', '**/results/failed/*.txt',
     '**/results/*.code', '**/results/failed/*.code',
   ]
