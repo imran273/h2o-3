@@ -60,6 +60,7 @@ public class PersistS3Test extends TestUtil {
 
   @Test
   public void testS3ImportAccessProtected() throws Exception {
+    // This test is only runnable in environment with Amazon credentials properly set {AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY}
     Scope.enter();
     Key k = null, k2 = null;
     Frame fr = null;
