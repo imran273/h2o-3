@@ -461,7 +461,7 @@ public final class PersistS3 extends Persist {
     String [] parts = decodePath(filter);
     if(parts[1] != null) { // bucket and key prefix
       if(_keyCaches.get(parts[0]) == null) {
-        if(!getClient().doesBucketExist(parts[0]))
+        if(!getClient().doesBucketExistV2(parts[0]))
           return new ArrayList<>();
         _keyCaches.put(parts[0], new KeyCache(parts[0]));
       }
