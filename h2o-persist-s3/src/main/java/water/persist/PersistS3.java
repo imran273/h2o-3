@@ -55,6 +55,10 @@ public final class PersistS3 extends Persist {
   public static AmazonS3 getClient(final String accessKeyId, final String accessSecretKey) {
 
     final byte[] digest;
+    // When users specify credentials in URL, these credentials might be different than those provided in configuration
+    // or provided in previous URL used. If the credentials are different, we must build a new client with new credentials.
+    // Not providing credentials also correctly results in new client construction (users may want to continue with values from config).
+    // Storing these values in memory for comparison is potentially dangerous. Instead, a hash of those two values is stored.
     if (accessKeyId != null && accessSecretKey != null) {
       StringBuilder keyDigestBuilder = new StringBuilder(accessKeyId);
       keyDigestBuilder.append(accessSecretKey);
@@ -69,18 +73,15 @@ public final class PersistS3 extends Persist {
           try {
             H2OAWSCredentialsProviderChain credentialsProviderChain = new H2OAWSCredentialsProviderChain(accessKeyId, accessSecretKey);
             final ClientConfiguration clientConfiguration = s3ClientCfg();
-            
-            final AmazonS3ClientBuilder amazonS3ClientBuilder = AmazonS3ClientBuilder.standard()
+
+            _s3 = AmazonS3ClientBuilder.standard()
                     .withCredentials(credentialsProviderChain)
                     .withClientConfiguration(clientConfiguration)
                     .withPathStyleAccessEnabled(isPathStyleEnabled())
                     .withRegion(getRegion())
-                    .enableForceGlobalBucketAccess(); //Enables access to all buckets regardless of region, mimics behavior of deprecated AWS API
-
-            final AwsClientBuilder.EndpointConfiguration endpointConfiguration = getEndpointConfiguration(amazonS3ClientBuilder.getClientConfiguration());
-            _s3 = amazonS3ClientBuilder.withEndpointConfiguration(endpointConfiguration)
+                    .enableForceGlobalBucketAccess() // Mimics old API behavior. // There might be one physical user of H2O requesting data from several buckets which lie in different regions. 
+                    .withEndpointConfiguration(getEndpointConfiguration(clientConfiguration))
                     .build();
-
           } catch( Throwable e ) {
             e.printStackTrace();
             StringBuilder msg = new StringBuilder();
