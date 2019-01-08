@@ -333,12 +333,15 @@ public final class PersistS3 extends Persist {
     s = s.substring(KEY_PREFIX_LEN);
     final Matcher matcher = _accessKeyUrlPattern.matcher(s);
     final S3Path s3Path = new S3Path();
+    
+    // If there are credentials (access key ID, secret key) in the URL, extract them.
     if (matcher.matches()) {
       s3Path.accessKeyId = matcher.group(1);
       s3Path.accessSecretKey = matcher.group(2);
       s = matcher.group(3);
     }
-
+    
+    // Extract bucket name and file name.
     int dlm = s.indexOf('/');
     if (dlm < 0) {
       s3Path.bucketName = s;
