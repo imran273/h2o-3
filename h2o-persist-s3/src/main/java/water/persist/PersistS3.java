@@ -5,6 +5,7 @@ import com.amazonaws.AmazonServiceException;
 import com.amazonaws.ClientConfiguration;
 import com.amazonaws.Protocol;
 import com.amazonaws.auth.*;
+import com.amazonaws.auth.profile.ProfileCredentialsProvider;
 import com.amazonaws.client.builder.AwsClientBuilder;
 import com.amazonaws.regions.Regions;
 import com.amazonaws.services.s3.AmazonS3;
@@ -130,7 +131,7 @@ public final class PersistS3 extends Persist {
       providers.add(InstanceProfileCredentialsProvider.getInstance());
       providers.add(new EnvironmentVariableCredentialsProvider());
       providers.add(new SystemPropertiesCredentialsProvider());
-      providers.add(new SystemPropertiesCredentialsProvider());
+      providers.add(new ProfileCredentialsProvider());
       return providers;
     }
 
