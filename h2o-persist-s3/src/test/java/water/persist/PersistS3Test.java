@@ -11,9 +11,13 @@ import water.util.FileUtils;
 import java.net.URI;;
 
 import static junit.framework.TestCase.assertEquals;
+import static org.junit.Assume.assumeTrue;
 
 
 public class PersistS3Test extends TestUtil {
+  
+  private static final String AWS_ACCESS_KEY_PROPERTY_NAME = "AWS_ACCESS_KEY_ID";
+  private static final String AWS_SECRET_KEY_PROPERTY_NAME = "AWS_SECRET_ACCESS_KEY";
 
 
   @BeforeClass
@@ -69,12 +73,24 @@ public class PersistS3Test extends TestUtil {
   @Test
   public void testS3ImportAccessProtected() throws Exception {
     // This test is only runnable in environment with Amazon credentials properly set {AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY}
+    final String accessKey = System.getenv(AWS_ACCESS_KEY_PROPERTY_NAME);
+    final String secretKey = System.getenv(AWS_SECRET_KEY_PROPERTY_NAME);
+    
+    assumeTrue(accessKey != null);
+    assumeTrue(secretKey != null);
+    
+    StringBuilder s3UrlBuilder = new StringBuilder("s3://");
+    s3UrlBuilder.append(accessKey);
+    s3UrlBuilder.append(":");
+    s3UrlBuilder.append(secretKey);
+    s3UrlBuilder.append("@h2o-unit-tests/iris.csv");
+    
     Scope.enter();
     Key k = null, k2 = null;
     Frame fr = null;
     FileVec v = null, v2 = null;
     try {
-      k = H2O.getPM().anyURIToKey(new URI("s3://test.0xdata.com/h2o-unit-tests/iris.csv"));
+      k = H2O.getPM().anyURIToKey(new URI(s3UrlBuilder.toString()));
       fr = DKV.getGet(k);
       v = (FileVec) fr.anyVec();
       // make sure we have some chunks
