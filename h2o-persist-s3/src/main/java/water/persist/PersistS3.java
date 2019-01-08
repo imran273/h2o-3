@@ -48,10 +48,28 @@ public final class PersistS3 extends Persist {
   private static final MessageDigest _messageDigest = DigestUtils.getSha256Digest();
   private static final Pattern _accessKeyUrlPattern = Pattern.compile("([a-zA-Z0-9]+):([a-zA-Z0-9]*)@(.*)");
 
+  /**
+   * Creates an Amazon S3 client using default chain of credential providers, without incorporating access key ID and
+   * secret access key. This kind of {@link AmazonS3} client is constructed for any purpose but 'GET' operations,
+   * where in-url credentials are not supported.
+   *
+   * @return An instance of {@link AmazonS3Client}
+   */
   public static AmazonS3 getClient() {
     return getClient(null, null);
   }
 
+  /**
+   * Creates an Amazon S3 client using default chain of credential providers, enhanced with static credentials providers
+   * based on accessKeyId and accessSecretKey pair - if provided.
+   *
+   * Any time accessKeyId and accessSecretKey arguments are provided, their value is hashed and compared to those used to
+   * create existing client. If the credentials are not equal (comparison includes null values), new client is constructed.
+   *
+   * @param accessKeyId Secret access Key ID. If null, treated as not provided and not used in the credential providers chain.
+   * @param accessSecretKey Secret access key. If null, treated as not provided and not used in the credential providers chain.
+   * @return An instance of {@link AmazonS3}, either newly constructed or existing instance
+   */
   public static AmazonS3 getClient(final String accessKeyId, final String accessSecretKey) {
 
     final byte[] digest;
