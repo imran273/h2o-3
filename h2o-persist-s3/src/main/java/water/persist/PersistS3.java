@@ -10,7 +10,6 @@ import com.amazonaws.regions.Regions;
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.AmazonS3Client;
 import com.amazonaws.services.s3.AmazonS3ClientBuilder;
-import com.amazonaws.services.s3.S3ClientOptions;
 import com.amazonaws.services.s3.model.*;
 import com.amazonaws.util.AwsHostNameUtils;
 import com.amazonaws.util.RuntimeHttpUtils;
@@ -39,7 +38,6 @@ import static water.H2O.OptArgs.SYSTEM_PROP_PREFIX;
 
 /** Persistence backend for S3 */
 public final class PersistS3 extends Persist {
-  private static final String HELP = "You can specify a credentials properties file with the -aws_credentials command line switch.";
 
   private static final String KEY_PREFIX = "s3://";
   private static final int KEY_PREFIX_LEN = KEY_PREFIX.length();
@@ -70,10 +68,12 @@ public final class PersistS3 extends Persist {
         if( _s3 == null ) {
           try {
             H2OAWSCredentialsProviderChain credentialsProviderChain = new H2OAWSCredentialsProviderChain(accessKeyId, accessSecretKey);
-            ClientConfiguration clientConfiguration = s3ClientCfg();
+            final ClientConfiguration clientConfiguration = s3ClientCfg();
+            
             final AmazonS3ClientBuilder amazonS3ClientBuilder = AmazonS3ClientBuilder.standard()
                     .withCredentials(credentialsProviderChain)
                     .withClientConfiguration(clientConfiguration)
+                    .withPathStyleAccessEnabled(isPathStyleEnabled())
                     .withRegion(getRegion())
                     .enableForceGlobalBucketAccess(); //Enables access to all buckets regardless of region, mimics behavior of deprecated AWS API
 
@@ -414,20 +414,10 @@ public final class PersistS3 extends Persist {
     return cfg;
   }
 
-  static  AmazonS3Client configureClient(AmazonS3Client s3Client) {
-    // Region overrides end-point settings
-    if (System.getProperty(S3_END_POINT) != null) {
-      String endPoint = System.getProperty(S3_END_POINT);
-      Log.debug("S3 endpoint specified: ", endPoint);
-      s3Client.setEndpoint(endPoint);
-    }
-    if (System.getProperty(S3_ENABLE_PATH_STYLE) != null && Boolean.valueOf(System.getProperty(S3_ENABLE_PATH_STYLE))) {
-      Log.debug("S3 path style access enabled");
-      S3ClientOptions sco = new S3ClientOptions();
-      sco.setPathStyleAccess(true);
-      s3Client.setS3ClientOptions(sco);
-    }
-    return s3Client;
+  static boolean isPathStyleEnabled() {
+    final boolean pathStyleEnabled = Boolean.valueOf(System.getProperty(S3_ENABLE_PATH_STYLE));
+    if (pathStyleEnabled) Log.debug("S3 path style access enabled");
+    return pathStyleEnabled;
   }
 
   private static Regions getRegion() {
