@@ -1,5 +1,6 @@
 package water.persist;
 
+import com.sun.jndi.toolkit.url.Uri;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.*;
 
@@ -378,13 +379,24 @@ public final class PersistHdfs extends Persist {
       Path p = new Path(filter);
       Path expand = p;
       final URI uri = p.toUri();
-      final String comparedPath = filter.replace(uri.getUserInfo() + "@", "");
+      final String comparedPath = p.toString();
       if( !filter.endsWith("/") ) expand = p.getParent();
       FileSystem fs = FileSystem.get(uri, conf);
       for( FileStatus file : fs.listStatus(expand) ) {
-        Path fp = file.getPath();
-        if( fp.toString().startsWith(comparedPath) ) {
-          array.add(fp.toString());
+        final URI s3File = file.getPath().toUri();
+        final String s3FilePathString;
+        if(s3File.getUserInfo() == null && uri.getUserInfo() != null){
+          // If the original URI contained user Info, it should be inserted into the returned URI,
+          // as the client library does not include it since version 2.8.x
+          URI newUri = new URI(s3File.getScheme(), uri.getUserInfo(), s3File.getHost(), s3File.getPort(),
+                  s3File.getPath(), s3File.getQuery(), s3File.getFragment());
+          s3FilePathString = newUri.toString();
+        } else {
+          s3FilePathString = s3File.toString();
+        }
+        
+        if( s3FilePathString.startsWith(comparedPath) ) {
+          array.add(s3FilePathString);
         }
         if( array.size() == limit) break;
       }
