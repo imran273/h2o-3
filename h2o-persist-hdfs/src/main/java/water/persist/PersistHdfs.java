@@ -388,10 +388,8 @@ public final class PersistHdfs extends Persist {
         }
         if( array.size() == limit) break;
       }
-    } catch (Exception e) {
-      Log.trace(e);
     } catch (Throwable t) {
-      Log.warn(t);
+      Log.err(t);
     }
 
     return array;
