@@ -6,14 +6,12 @@ import com.amazonaws.ClientConfiguration;
 import com.amazonaws.Protocol;
 import com.amazonaws.auth.*;
 import com.amazonaws.auth.profile.ProfileCredentialsProvider;
-import com.amazonaws.client.builder.AwsClientBuilder;
-import com.amazonaws.regions.Regions;
+import com.amazonaws.internal.StaticCredentialsProvider;
+import com.amazonaws.regions.RegionUtils;
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.AmazonS3Client;
-import com.amazonaws.services.s3.AmazonS3ClientBuilder;
+import com.amazonaws.services.s3.S3ClientOptions;
 import com.amazonaws.services.s3.model.*;
-import com.amazonaws.util.AwsHostNameUtils;
-import com.amazonaws.util.RuntimeHttpUtils;
 import org.apache.commons.codec.digest.DigestUtils;
 import org.apache.commons.lang.builder.ToStringBuilder;
 import water.*;
@@ -88,19 +86,10 @@ public final class PersistS3 extends Persist {
 
     synchronized (_lock) {
       if (_s3 == null || digest != _credentialsDigest) {
-        if( _s3 == null ) {
           try {
-            H2OAWSCredentialsProviderChain credentialsProviderChain = new H2OAWSCredentialsProviderChain(accessKeyId, accessSecretKey);
-            final ClientConfiguration clientConfiguration = s3ClientCfg();
-
-            _s3 = AmazonS3ClientBuilder.standard()
-                    .withCredentials(credentialsProviderChain)
-                    .withClientConfiguration(clientConfiguration)
-                    .withPathStyleAccessEnabled(isPathStyleEnabled())
-                    .withRegion(getRegion())
-                    .enableForceGlobalBucketAccess() // Mimics old API behavior. // There might be one physical user of H2O requesting data from several buckets which lie in different regions. 
-                    .withEndpointConfiguration(getEndpointConfiguration(clientConfiguration))
-                    .build();
+            H2OAWSCredentialsProviderChain c = new H2OAWSCredentialsProviderChain(accessKeyId, accessSecretKey);
+            ClientConfiguration cc = s3ClientCfg();
+            _s3 = configureClient(new AmazonS3Client(c, cc));
           } catch( Throwable e ) {
             e.printStackTrace();
             StringBuilder msg = new StringBuilder();
@@ -108,7 +97,6 @@ public final class PersistS3 extends Persist {
             msg.append("Unable to load S3 credentials.");
             throw new RuntimeException(msg.toString());
           }
-        }
       }
     }
     return _s3;
@@ -125,10 +113,10 @@ public final class PersistS3 extends Persist {
     private static List<AWSCredentialsProvider> getProviders(final String accessKeyId, final String accessSecretKey) {
       final List<AWSCredentialsProvider> providers = new ArrayList<>();
       if (accessKeyId != null && accessSecretKey != null) {
-        providers.add(new AWSStaticCredentialsProvider(new BasicAWSCredentials(accessKeyId, accessSecretKey)));
+        providers.add(new StaticCredentialsProvider(new BasicAWSCredentials(accessKeyId, accessSecretKey)));
       }
       providers.add(new H2OArgCredentialsProvider());
-      providers.add(InstanceProfileCredentialsProvider.getInstance());
+      providers.add(new InstanceProfileCredentialsProvider());
       providers.add(new EnvironmentVariableCredentialsProvider());
       providers.add(new SystemPropertiesCredentialsProvider());
       providers.add(new ProfileCredentialsProvider());
@@ -437,35 +425,25 @@ public final class PersistS3 extends Persist {
     return cfg;
   }
 
-  static boolean isPathStyleEnabled() {
-    final boolean pathStyleEnabled = Boolean.valueOf(System.getProperty(S3_ENABLE_PATH_STYLE));
-    if (pathStyleEnabled) Log.debug("S3 path style access enabled");
-    return pathStyleEnabled;
-  }
-
-  private static Regions getRegion() {
-    final String region = System.getProperty(S3_REGION);
-    if (region != null) {
-      try {
-        final Regions regions = Regions.valueOf(region);
-        Log.debug("S3 region specified: ", region);
-        return regions;
-      } catch (IllegalArgumentException e) {
-        Log.err(e, "Unknown S3 region specified: " + region);
-      }
+  static  AmazonS3Client configureClient(AmazonS3Client s3Client) {
+    if (System.getProperty(S3_REGION) != null) {
+      String region = System.getProperty(S3_REGION);
+      Log.debug("S3 region specified: ", region);
+      s3Client.setRegion(RegionUtils.getRegion(region));
     }
-    return Regions.DEFAULT_REGION;
-  }
-
-  private static AwsClientBuilder.EndpointConfiguration getEndpointConfiguration(final ClientConfiguration clientConfiguration) {
-    final String endpoint = System.getProperty(S3_END_POINT);
-    if (endpoint == null) return null;
-    Log.debug("S3 endpoint specified: ", endpoint);
-
-    final URI endpointUri = RuntimeHttpUtils.toUri(endpoint, clientConfiguration);
-    final String region = AwsHostNameUtils.parseRegion(endpointUri.getHost(), AmazonS3Client.S3_SERVICE_NAME);
-    return new AwsClientBuilder.EndpointConfiguration(endpoint, region);
-
+    // Region overrides end-point settings
+    if (System.getProperty(S3_END_POINT) != null) {
+      String endPoint = System.getProperty(S3_END_POINT);
+      Log.debug("S3 endpoint specified: ", endPoint);
+      s3Client.setEndpoint(endPoint);
+    }
+    if (System.getProperty(S3_ENABLE_PATH_STYLE) != null && Boolean.valueOf(System.getProperty(S3_ENABLE_PATH_STYLE))) {
+      Log.debug("S3 path style access enabled");
+      S3ClientOptions sco = new S3ClientOptions();
+      sco.setPathStyleAccess(true);
+      s3Client.setS3ClientOptions(sco);
+    }
+    return s3Client;
   }
 
   @Override public void delete(Value v) {
@@ -564,7 +542,7 @@ public final class PersistS3 extends Persist {
     final S3Path s3Path = decodePath(filter);
     if (s3Path.itemName != null) { // bucket and key prefix
       if (_keyCaches.get(s3Path.bucketName) == null) {
-        if (!getClient(s3Path.accessKeyId, s3Path.accessSecretKey).doesBucketExistV2(s3Path.bucketName))
+        if (!getClient(s3Path.accessKeyId, s3Path.accessSecretKey).doesBucketExist(s3Path.bucketName))
           return new ArrayList<>();
         _keyCaches.put(s3Path.bucketName, new KeyCache(s3Path.bucketName));
       }
