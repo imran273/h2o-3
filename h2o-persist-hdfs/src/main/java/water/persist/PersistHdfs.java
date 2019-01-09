@@ -1,6 +1,5 @@
 package water.persist;
 
-import com.sun.jndi.toolkit.url.Uri;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.*;
 
