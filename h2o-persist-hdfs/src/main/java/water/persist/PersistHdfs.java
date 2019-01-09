@@ -377,11 +377,13 @@ public final class PersistHdfs extends Persist {
     try {
       Path p = new Path(filter);
       Path expand = p;
+      final URI uri = p.toUri();
+      final String comparedPath = filter.replace(uri.getUserInfo() + "@", "");
       if( !filter.endsWith("/") ) expand = p.getParent();
-      FileSystem fs = FileSystem.get(p.toUri(), conf);
+      FileSystem fs = FileSystem.get(uri, conf);
       for( FileStatus file : fs.listStatus(expand) ) {
         Path fp = file.getPath();
-        if( fp.toString().startsWith(p.toString()) ) {
+        if( fp.toString().startsWith(comparedPath) ) {
           array.add(fp.toString());
         }
         if( array.size() == limit) break;
@@ -396,7 +398,7 @@ public final class PersistHdfs extends Persist {
   }
 
   @Override
-  public void importFiles(String path, String pattern, ArrayList<String> files, ArrayList<String> keys, ArrayList<String> fails, ArrayList<String> dels) {
+  public void   importFiles(String path, String pattern, ArrayList<String> files, ArrayList<String> keys, ArrayList<String> fails, ArrayList<String> dels) {
 //    path = convertS3toS3N(path);
 
     // Fix for S3 kind of URL
