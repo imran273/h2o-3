@@ -36,19 +36,20 @@ test-package-r:
 		$(JENKINS_MAKEFILE_PATH) tests/runitSmokeTestList tests/runitAutoMLList \
 		scripts/validate_r_cmd_check_output.R scripts/validate_r_cmd_check_output.py h2o-3-DESCRIPTION
 
-init-tests:
+init-lookup:
 	rm -f h2o-{r,py}/tests/.lookup.txt
 
-lookup-automl-tests: init-tests
+lookup-automl-tests: init-lookup
+	mkdir -p h2o-{r,py}/tests
 	find h2o-r/tests -name '*automl*.R' -exec basename {} \; >>h2o-r/tests/.lookup.txt
 	find h2o-py/tests -name '*automl*.py' -exec basename {} \; >>h2o-py/tests/.lookup.txt
 
-lookup-hdfs-tests: init-tests
+lookup-hdfs-tests: init-lookup
 	mkdir -p h2o-{r,py}/tests/testdir_hdfs
 	find h2o-r/tests/testdir_hdfs -name '*.R' -exec basename {} \; >>h2o-r/tests/.lookup.txt
 	find h2o-py/tests/testdir_hdfs -name '*.py' -exec basename {} \; >>h2o-py/tests/.lookup.txt
 
-lookup-demos-tests: init-tests
+lookup-demos-tests: init-lookup
 	mkdir -p h2o-{r,py}/tests/testdir_demos
 	find h2o-r/tests/testdir_demos -name '*.R' -exec basename {} \; >>h2o-r/tests/.lookup.txt
 	find h2o-py/tests/testdir_demos -name '*.py' -exec basename {} \; >>h2o-py/tests/.lookup.txt
